@@ -1,0 +1,169 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum Gender {
+  MALE
+  FEMALE
+}
+
+enum ActivityLevel {
+  SEDENTARY
+  COMMUTE
+  WALKING
+}
+
+enum MealSlotType {
+  BREAKFAST
+  LUNCH
+  SNACK
+  DINNER
+}
+
+enum FoodCategory {
+  PROTEIN
+  CARBS
+  VEGETABLES
+  FRUITS
+  DAIRY
+  SNACKS
+  BEVERAGE
+  SWEETS
+  FAST_FOOD
+}
+
+model User {
+  id                String         @id @default(uuid())
+  email             String         @unique
+  name              String
+  avatarUrl         String?
+  isGoogleLinked    Boolean        @default(false)
+  googleId          String?        @unique
+  gender            Gender         @default(MALE)
+  age               Int            @default(26)
+  heightCm          Float          @default(175.0)
+  currentWeight     Float          @default(110.0)
+  targetWeight      Float          @default(100.0)
+  targetMonths      Int            @default(2)
+  activityLevel     ActivityLevel  @default(COMMUTE)
+  healthConditions  String[]       @default(["None"])
+  kcalOverride      Int?
+  dietStartDate     DateTime       @default(now())
+  isDarkTheme       Boolean        @default(false)
+  isOnboarded       Boolean        @default(false)
+  
+  dayLogs           DietDayLog[]
+  weightRecords     WeightRecord[]
+  customFoods       FoodItem[]
+  chatMessages      ChatMessage[]
+  refreshTokens     RefreshToken[]
+
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+
+  @@index([email])
+  @@index([googleId])
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  tokenHash String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+}
+
+model FoodItem {
+  id          String        @id @default(uuid())
+  name        String
+  bengaliName String?
+  category    FoodCategory
+  servingQty  String
+  unitWeightG Float?
+  kcal        Int
+  proteinG    Float
+  carbsG      Float
+  fatG        Float
+  keywords    String[]
+  isVerified  Boolean       @default(true)
+  createdById String?
+  createdBy   User?         @relation(fields: [createdById], references: [id], onDelete: SetNull)
+
+  loggedMeals LoggedMealItem[]
+
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@index([name])
+  @@index([category])
+}
+
+model DietDayLog {
+  id           String           @id @default(uuid())
+  userId       String
+  user         User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date         DateTime         @db.Date
+  targetKcal   Int              @default(1500)
+  waterGlasses Int              @default(0)
+  walkMinutes  Int              @default(0)
+  notes        String?
+  
+  mealItems    LoggedMealItem[]
+
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  @@unique([userId, date])
+  @@index([userId, date])
+}
+
+model LoggedMealItem {
+  id           String       @id @default(uuid())
+  dayLogId     String
+  dayLog       DietDayLog   @relation(fields: [dayLogId], references: [id], onDelete: Cascade)
+  slot         MealSlotType
+  foodItemId   String?
+  foodItem     FoodItem?    @relation(fields: [foodItemId], references: [id], onDelete: SetNull)
+  name         String
+  qty          String
+  servings     Float        @default(1.0)
+  kcal         Int
+  proteinG     Float
+  carbsG       Float
+  fatG         Float
+
+  createdAt    DateTime     @default(now())
+
+  @@index([dayLogId, slot])
+}
+
+model WeightRecord {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date      DateTime @default(now())
+  weightKg  Float
+  notes     String?
+
+  createdAt DateTime @default(now())
+
+  @@index([userId, date])
+}
+
+model ChatMessage {
+  id             String   @id @default(uuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role           String
+  content        String
+  quickFollowUps String[] @default([])
+  createdAt      DateTime @default(now())
+
+  @@index([userId, createdAt])
+}
